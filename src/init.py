@@ -1,9 +1,10 @@
-''' initialize the iDMRG program with a 4-spin problem '''
+''' ED for the XY chain '''
 
 import numpy as np
 from numpy import matlib
 import scipy
 from scipy import sparse
+from scipy.sparse import linalg
 import bitops
 
 def xy_hamilt(n):
@@ -22,9 +23,19 @@ def xy_hamilt(n):
                 rows.append(target)
                 cols.append(state_i)
     H = scipy.sparse.csr_matrix((data, (rows, cols)), shape=shape, dtype=np.complex)
-    print(np.around(H.todense(), decimals=2))
+    #print(np.around(H.todense(), decimals=2))
     return H
 
+def ground_state(H): 
+    # ground state solved by ED
+    gs = scipy.sparse.linalg.eigsh(H, k=1, which='SA')
+    E = gs[0][0]
+    Psi = gs[1].transpose()[0]
+    return E, Psi
+
 if __name__=='__main__':
-    xy_hamilt(4)
+    H = xy_hamilt(4)
+    gs = ground_state(H)
+    print(np.around(gs[0], decimals=2))
+    print(np.around(gs[1], decimals=2))
     
