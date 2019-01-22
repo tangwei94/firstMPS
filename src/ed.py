@@ -13,7 +13,7 @@ def xy_hamilt(n):
     shape = (mat_dim, mat_dim)
     data, rows, cols = [], [], []
     for state_i in range(mat_dim):
-        getbit = np.frompyfunc(lambda p: bitops.bget(state_i, p), 1, 1)
+        getbit = np.frompyfunc(lambda p: bitops.bget(state_i, n - 1 - p), 1, 1)
         spin_cfg = getbit(range(n))
         for site_i in range(n - 1):
             if spin_cfg[site_i] != spin_cfg[site_i + 1]:
