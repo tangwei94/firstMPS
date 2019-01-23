@@ -67,9 +67,9 @@ def init_newpsi(sigma, As, Bs): # not tested
         sigma1_rvsd = np.append(sigma1_rvsd, np.zeros(maxdim - len(sigma1_rvsd)))
     sigma1_rvsd = np.diag(calc_rvs(sigma1_rvsd))
 
-    newlambda = lambdaR.dot(sigma1_rvsd).dot(lambdaL)
+    newpsi = lambdaR.dot(sigma1_rvsd).dot(lambdaL)
 
-    return newAs, newBs, newlambda
+    return newAs, newBs, newpsi
 
 if __name__ == '__main__':
     L = 6

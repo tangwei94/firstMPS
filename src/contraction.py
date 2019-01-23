@@ -60,7 +60,6 @@ if __name__ == '__main__':
         ispassed = True 
         
     # test the expectation value of H
-    # todo compare with the exact solution
     msg = 'the ground state energy'
     print('--- test ' + msg + ' ---')    
     M = mpo.xy_mpo()
