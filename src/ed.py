@@ -23,7 +23,6 @@ def xy_hamilt(n):
                 rows.append(target)
                 cols.append(state_i)
     H = scipy.sparse.csr_matrix((data, (rows, cols)), shape=shape, dtype=np.complex)
-    #print(np.around(H.todense(), decimals=2))
     return H
 
 def ground_state(H): 
