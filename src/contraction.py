@@ -10,7 +10,7 @@ def contractL(Cl, As, M):
     Clnew = Cl.flatten()
     Clnew = np.reshape(Clnew, (1, len(Clnew)))
     Clnew = Clnew.dot(El)
-    newshape = (1, As[0].shape[1], 1, As[0].shape[1])
+    newshape = (1, As[0].shape[1], M[0][0].shape[0], As[0].shape[1])
     Clnew = np.reshape(Clnew, newshape)
     return Clnew
 
@@ -22,7 +22,7 @@ def contractR(Cr, Bs, M):
     Crnew = Cr.flatten()
     Crnew = np.reshape(Crnew, (len(Crnew), 1))
     Crnew = Er.dot(Crnew)
-    newshape = (Bs[0].shape[0], 1, Bs[0].shape[0], 1)
+    newshape = (Bs[0].shape[0], M[0][0].shape[1], Bs[0].shape[0], 1)
     Crnew = np.reshape(Crnew, newshape)
     return Crnew
 
@@ -60,10 +60,29 @@ if __name__ == '__main__':
         ispassed = True 
         
     # test the expectation value of H
+    # todo compare with the exact solution
+    msg = 'the ground state energy'
+    print('--- test ' + msg + ' ---')    
     M = mpo.xy_mpo()
     Cl = np.reshape([1,0,0,0], (1,1,4,1))
     for ix in range(L//2):
         Cl = contractL(Cl, A_list[ix], M)
     Cr = np.reshape([0,0,0,1], (1,4,1,1))
+    for ix in range(L//2):
         Cr = contractR(Cr, B_list[ix], M)
     
+    Cl = np.einsum('abcd,be->aecd', Cl, np.diag(sigma))
+    Cl = np.einsum('abcd,de->abce', Cl, np.diag(sigma))
+    import pdb; pdb.set_trace()
+    Cl = Cl.flatten()
+    Cr = Cr.flatten()
+    Emps = Cl.dot(Cr)
+
+    if not np.isclose(E, Emps):
+        ispassed = False
+        print(msg + ' test failed')
+        print(E, Emps)
+    if ispassed:
+        print(msg + ' test passed')
+    else:
+        ispassed = True
