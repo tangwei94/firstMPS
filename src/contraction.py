@@ -73,7 +73,6 @@ if __name__ == '__main__':
     
     Cl = np.einsum('abcd,be->aecd', Cl, np.diag(sigma))
     Cl = np.einsum('abcd,de->abce', Cl, np.diag(sigma))
-    import pdb; pdb.set_trace()
     Cl = Cl.flatten()
     Cr = Cr.flatten()
     Emps = Cl.dot(Cr)
