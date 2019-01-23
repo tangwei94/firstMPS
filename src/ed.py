@@ -17,8 +17,8 @@ def xy_hamilt(n):
         spin_cfg = getbit(range(n))
         for site_i in range(n - 1):
             if spin_cfg[site_i] != spin_cfg[site_i + 1]:
-                target = bitops.bflip(state_i, site_i)
-                target = bitops.bflip(target, site_i + 1)
+                target = bitops.bflip(state_i, n - 1 - site_i)
+                target = bitops.bflip(target, n - 1 - (site_i + 1))
                 data.append(-0.5)
                 rows.append(target)
                 cols.append(state_i)
@@ -33,7 +33,7 @@ def ground_state(H):
     return E, Psi
 
 if __name__=='__main__':
-    H = xy_hamilt(4)
+    H = xy_hamilt(6)
     gs = ground_state(H)
     print(np.around(gs[0], decimals=2))
     print(np.around(gs[1], decimals=2))
