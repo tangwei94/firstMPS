@@ -19,7 +19,7 @@ class idmrg(object):
             warnings.warn('idmrg: L must be even. L modified to L+1')
             self.targetL += 1
 
-        self.dataname = 'xy_dmrg_D'+str(self.bondD)+'.h5'
+        self.dataname = 'data/xy_dmrg_D'+str(self.bondD)+'.h5'
 
         initL = 2*int(np.log2(self.bondD)) + 2
         self.currL = initL
