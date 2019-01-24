@@ -2,59 +2,59 @@ import numpy as np
 from numpy import linalg
 import ed
 from canonical import canonical
+import sys
 
-def obtain_sigma1(sigma, Bs):
-    mat_prod = []
-    sigma = np.diag(sigma)
-    mat_prod.append(sigma.dot(Bs[0]))
-    mat_prod.append(sigma.dot(Bs[1]))
-    mat_prod = np.asarray(mat_prod)
-    shape0 = mat_prod.shape
-    mat_prod = np.reshape(mat_prod, (shape0[0]*shape0[1], shape0[2]))
-    sigma1 = np.linalg.svd(mat_prod, compute_uv=False)
+def obtain_newAs(sigma, Bs_list):
+    mat = np.diag(sigma)
+    newAs_list = []
+    for ix in range(len(Bs_list)):
+        mat_prod = np.einsum('bc,acd->abd', mat, Bs_list[ix])
+        mat_prod = np.reshape(mat_prod, (mat_prod.shape[0]*mat_prod.shape[1], mat_prod.shape[2]))
+        import pdb; pdb.set_trace()
+        if ix < len(Bs_list) - 1:
+            q, mat = np.linalg.qr(mat_prod)
+        else:
+            q, s, vdag = np.linalg.svd(mat_prod)
+        newAs_list.append(np.reshape(q, (2, q.shape[0]//2, q.shape[1])))
+    return newAs_list, s, vdag
 
-    return sigma1
+def obtain_newBs(sigma, As_list):
+    mat = np.diag(sigma)
+    newBs_list = []
+    for ix in range(len(As_list)):
+        mat_prod = np.einsum('abc,cd->bad', As_list[ix], mat)
+        mat_prod = np.reshape(mat_prod, (mat_prod.shape[0], mat_prod.shape[1]*mat_prod.shape[2]))
+        if ix < len(As_list) - 1:
+            mat_prod_dag = mat_prod.T.conj()
+            q, mat = np.linalg.qr(mat_prod_dag)
+            mat, q = mat.T.conj(), q.T.conj()
+        else:
+            u, s, q = np.linalg.svd(mat_prod)
+        newBs_list.append(np.reshape(q, (2, q.shape[0]//2, q.shape[1])))
+    return newBs_list, s, u
 
-def obtain_sigma1_left(sigma, As): # for test
-    mat_prod = []
-    sigma = np.diag(sigma)
-    mat_prod.append(As[0].dot(sigma))
-    mat_prod.append(As[1].dot(sigma))
-    mat_prod = np.asarray(mat_prod)
-    mat_prod = np.swapaxes(mat_prod, 0, 1) # careful
-    shape0 = mat_prod.shape
-    mat_prod = np.reshape(mat_prod, (shape0[0], shape0[1]*shape0[2]))
-    sigma1 = np.linalg.svd(mat_prod, compute_uv=False)
-    return sigma1
+def fillzeros(Ms, dim):
+    spin, shapel, shaper = Ms.shape
+    if spin != 2 or shapel > dim or shaper > dim:
+        sys.exit('fillzeros: dimension mismatch')
+    if shapel < dim:
+        Ms = np.append(Ms, np.zeros(2, dim - shapel, shaper), axis=1)
+    if shaper < dim:
+        Ms = np.append(Ms, np.zeros(2, dim, dim - shaper), axis=2)
+    return Ms
 
-def init_newpsi(sigma, As, Bs): # not tested
-    
-    sigma1 = obtain_sigma1(sigma, Bs)
-    sigma = np.diag(sigma)
+def init_newpsi(sigma, As_list, Bs_list):
+    newAs_list, sr, lambdaR = obtain_newAs(sigma, Bs_list)
+    newBs_list, sl, lambdaL = obtain_newBs(sigma, As_list)
 
-    maxdim = Bs[0].shape[0]
+    if not np.allclose(sr, sl):
+        sys.exit('sr, sl not equal to each other')
+    sigma1 = sr
 
-    matprod_l = np.asarray([sigma.dot(Bs[0]), sigma.dot(Bs[1])])
-    shape_l = matprod_l.shape
-    matprod_l = np.reshape(matprod_l, (shape_l[0]*shape_l[1], shape_l[2]))
-    if (maxdim > matprod_l.shape[1]):
-        diff_shape = (matprod_l.shape[0], maxdim - matprod_l.shape[1])
-        matprod_l = np.append(matprod_l, np.zeros(diff_shape, dtype=np.complex), axis=1)
-    u, lambdaR = np.linalg.qr(matprod_l)
-    newAs = np.reshape(u, (2, u.shape[0]//2, u.shape[1]))
-
-    matprod_r = np.asarray([As[0].dot(sigma), As[1].dot(sigma)])
-    matprod_r = np.swapaxes(matprod_r, 0, 1)
-    shape_r = matprod_r.shape
-    matprod_r = np.reshape(matprod_r, (shape_r[0], shape_r[1]*shape_r[2]))
-    matprod_r_dag = matprod_r.T.conj()
-    if (maxdim > matprod_r_dag.shape[1]):
-        diff_shape = (matprod_r_dag.shape[0], maxdim - matprod_r_dag.shape[1])
-        matprod_r_dag = np.append(matprod_r_dag, np.zeros(diff_shape, dtype=np.complex), axis=1)
-    v, lambdaL_dag = np.linalg.qr(matprod_r_dag)
-    vdag, lambdaL = v.T.conj(), lambdaL_dag.T.conj()
-    newBs = np.reshape(vdag, (vdag.shape[0], 2, vdag.shape[1]//2))
-    newBs = np.swapaxes(newBs, 0, 1)
+    maxdim = len(sigma)
+    fillzero_to_list = np.frompyfunc(lambda Ms: fillzeros(Ms, maxdim), 1, 1)
+    newAs_list = fillzero_to_list(newAs_list)
+    newBs_list = fillzero_to_list(newBs_list)
 
     def rvs(x):
         if x > 1e-8: 
@@ -63,21 +63,20 @@ def init_newpsi(sigma, As, Bs): # not tested
             return 0
     calc_rvs = np.frompyfunc(rvs, 1, 1)
     sigma1_rvsd = calc_rvs(sigma1)
-    if len(sigma1_rvsd) < maxdim:
-        sigma1_rvsd = np.append(sigma1_rvsd, np.zeros(maxdim - len(sigma1_rvsd)))
-    sigma1_rvsd = np.diag(calc_rvs(sigma1_rvsd))
+    sigma1_rvsd = np.append(sigma1_rvsd, np.zeros(maxdim - len(sigma1)))
+    
+    lambdas = fillzeros(np.array([lambdaR, lambdaL]), maxdim)
+    newpsi = lambdas[0].dot(sigma1_rvsd).dot(lambdas[1])
 
-    newpsi = lambdaR.dot(sigma1_rvsd).dot(lambdaL)
-
-    return newAs, newBs, newpsi
+    return newAs_list, newBs_list, newpsi
 
 if __name__ == '__main__':
-    L = 6
+    L = 8
     H = ed.xy_hamilt(L)
     E, psi = ed.ground_state(H)
     A_list, B_list, sigma = canonical(psi, L)
-    sigma1 = obtain_sigma1(sigma, B_list[L//2-1])
-    sigma1_left = obtain_sigma1_left(sigma, A_list[L//2-1])
+    sigma1 = obtain_newAs(sigma, [B_list[L//2-1], B_list[L//2-2]])[1]
+    sigma1_left = obtain_newBs(sigma, [A_list[L//2-1], A_list[L//2-2]])[1]
     print(np.allclose(sigma1, sigma1_left))
 
-    newpsi = init_newpsi(sigma, A_list[L//2-1], B_list[L//2-1])
+    #newpsi = init_newpsi(sigma, A_list[L//2-1], B_list[L//2-1])
