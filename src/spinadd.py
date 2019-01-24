@@ -10,11 +10,10 @@ def obtain_newAs(sigma, Bs_list):
     for ix in range(len(Bs_list)):
         mat_prod = np.einsum('bc,acd->abd', mat, Bs_list[ix])
         mat_prod = np.reshape(mat_prod, (mat_prod.shape[0]*mat_prod.shape[1], mat_prod.shape[2]))
-        import pdb; pdb.set_trace()
         if ix < len(Bs_list) - 1:
             q, mat = np.linalg.qr(mat_prod)
         else:
-            q, s, vdag = np.linalg.svd(mat_prod)
+            q, s, vdag = np.linalg.svd(mat_prod, full_matrices=False)
         newAs_list.append(np.reshape(q, (2, q.shape[0]//2, q.shape[1])))
     return newAs_list, s, vdag
 
@@ -29,8 +28,8 @@ def obtain_newBs(sigma, As_list):
             q, mat = np.linalg.qr(mat_prod_dag)
             mat, q = mat.T.conj(), q.T.conj()
         else:
-            u, s, q = np.linalg.svd(mat_prod)
-        newBs_list.append(np.reshape(q, (2, q.shape[0]//2, q.shape[1])))
+            u, s, q = np.linalg.svd(mat_prod, full_matrices=False)
+        newBs_list.append(np.reshape(q, (2, q.shape[0], q.shape[1]//2)))
     return newBs_list, s, u
 
 def fillzeros(Ms, dim):
@@ -38,9 +37,9 @@ def fillzeros(Ms, dim):
     if spin != 2 or shapel > dim or shaper > dim:
         sys.exit('fillzeros: dimension mismatch')
     if shapel < dim:
-        Ms = np.append(Ms, np.zeros(2, dim - shapel, shaper), axis=1)
+        Ms = np.append(Ms, np.zeros((2, dim - shapel, shaper)), axis=1)
     if shaper < dim:
-        Ms = np.append(Ms, np.zeros(2, dim, dim - shaper), axis=2)
+        Ms = np.append(Ms, np.zeros((2, dim, dim - shaper)), axis=2)
     return Ms
 
 def init_newpsi(sigma, As_list, Bs_list):
@@ -52,9 +51,9 @@ def init_newpsi(sigma, As_list, Bs_list):
     sigma1 = sr
 
     maxdim = len(sigma)
-    fillzero_to_list = np.frompyfunc(lambda Ms: fillzeros(Ms, maxdim), 1, 1)
-    newAs_list = fillzero_to_list(newAs_list)
-    newBs_list = fillzero_to_list(newBs_list)
+    for ix in range(len(newAs_list)):
+        newAs_list[ix] = fillzeros(newAs_list[ix], maxdim)
+        newBs_list[ix] = fillzeros(newBs_list[ix], maxdim)
 
     def rvs(x):
         if x > 1e-8: 
@@ -79,4 +78,6 @@ if __name__ == '__main__':
     sigma1_left = obtain_newBs(sigma, [A_list[L//2-1], A_list[L//2-2]])[1]
     print(np.allclose(sigma1, sigma1_left))
 
-    #newpsi = init_newpsi(sigma, A_list[L//2-1], B_list[L//2-1])
+    newAs_list, newBs_list, newpsi = init_newpsi(sigma, [A_list[L//2-1]], [B_list[L//2-1]])
+    A_list += newAs_list
+    B_list += newBs_list
