@@ -32,7 +32,7 @@ def check_Lnorm(A_list):
 
     I_mpo = np.reshape([1,0,0,1], (2,2,1,1))
     Cl = np.reshape([1], (1,1,1,1))
-    for ix in range(L//2):
+    for ix in range(len(A_list)):
         Cl = contractL(Cl, A_list[ix], I_mpo)
         if not np.allclose(np.reshape(Cl, (Cl.shape[1], Cl.shape[3])), np.identity(Cl.shape[1])):
             ispassed = False
@@ -44,13 +44,12 @@ def check_Rnorm(B_list):
     
     I_mpo = np.reshape([1,0,0,1], (2,2,1,1))
     Cr = np.reshape([1], (1,1,1,1))
-    for ix in range(L//2):
+    for ix in range(len(B_list)):
         Cr = contractR(Cr, B_list[ix], I_mpo)
         if not np.allclose(np.reshape(Cr, (Cr.shape[0], Cr.shape[2])), np.identity(Cr.shape[0])):
             ispassed = False
     
     return ispassed
-
 
 if __name__ == '__main__':
     L = 6
