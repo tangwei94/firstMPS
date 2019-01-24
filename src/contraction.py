@@ -26,6 +26,32 @@ def contractR(Cr, Bs, M):
     Crnew = np.reshape(Crnew, newshape)
     return Crnew
 
+#### tests
+def check_Lnorm(A_list):
+    ispassed = True
+
+    I_mpo = np.reshape([1,0,0,1], (2,2,1,1))
+    Cl = np.reshape([1], (1,1,1,1))
+    for ix in range(L//2):
+        Cl = contractL(Cl, A_list[ix], I_mpo)
+        if not np.allclose(np.reshape(Cl, (Cl.shape[1], Cl.shape[3])), np.identity(Cl.shape[1])):
+            ispassed = False
+
+    return ispassed
+
+def check_Rnorm(B_list):
+    ispassed = True
+    
+    I_mpo = np.reshape([1,0,0,1], (2,2,1,1))
+    Cr = np.reshape([1], (1,1,1,1))
+    for ix in range(L//2):
+        Cr = contractR(Cr, B_list[ix], I_mpo)
+        if not np.allclose(np.reshape(Cr, (Cr.shape[0], Cr.shape[2])), np.identity(Cr.shape[0])):
+            ispassed = False
+    
+    return ispassed
+
+
 if __name__ == '__main__':
     L = 6
     H = ed.xy_hamilt(L)
@@ -33,35 +59,16 @@ if __name__ == '__main__':
     A_list, B_list, sigma = canonical(Psi, L)
 
     # test the left/right normalization condition
-    msg = 'the normalization condition'
-    print('--- test ' + msg + ' ---')
-    ispassed = True
-    I_mpo = np.reshape([1,0,0,1], (2,2,1,1))
-
-    Cl = np.reshape([1], (1,1,1,1))
-    for ix in range(L//2):
-        Cl = contractL(Cl, A_list[ix], I_mpo)
-        if not np.allclose(np.reshape(Cl, (Cl.shape[1], Cl.shape[3])), np.identity(Cl.shape[1])):
-            ispassed = False
-            print(msg + ' test failed for A, ix=' + str(ix))
-            print(np.reshape(Cl, (Cl.shape[1], Cl.shape[3])))
-
-    Cr = np.reshape([1], (1,1,1,1))
-    for ix in range(L//2):
-        Cr = contractR(Cr, B_list[ix], I_mpo)
-        if not np.allclose(np.reshape(Cr, (Cr.shape[0], Cr.shape[2])), np.identity(Cr.shape[0])):
-            ispassed = False
-            print(msg + ' test failed for B, ix=' + str(ix))
-            print(np.reshape(Cl, (Cl.shape[1], Cl.shape[3])))
-
-    if ispassed:
-        print(msg + ' test passed')
+    if check_Lnorm(A_list):
+        print('left normalization condition: test passed')
     else:
-        ispassed = True 
+        print('left normalization condition: test failed')
+    if check_Rnorm(B_list):
+        print('right normalization condition: test passed')
+    else:
+        print('right normalization condition: test failed')
         
     # test the expectation value of H
-    msg = 'the ground state energy'
-    print('--- test ' + msg + ' ---')    
     M = mpo.xy_mpo()
     Cl = np.reshape([1,0,0,0], (1,1,4,1))
     for ix in range(L//2):
@@ -77,10 +84,8 @@ if __name__ == '__main__':
     Emps = Cl.dot(Cr)
 
     if not np.isclose(E, Emps):
-        ispassed = False
-        print(msg + ' test failed')
+        print('ground state energy: test failed')
         print(E, Emps)
-    if ispassed:
-        print(msg + ' test passed')
     else:
-        ispassed = True
+        print('ground state energy: test passed')
+

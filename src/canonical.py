@@ -103,9 +103,4 @@ if __name__ == '__main__':
         print(msg + ': test passed')
     else: 
         ispassed = True
-        
-        
-
-
-
     
