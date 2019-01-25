@@ -9,6 +9,7 @@ import contraction as contr
 import spinadd as sadd
 from canonical import canonical
 import h5py
+import time
 
 class idmrg(object):
     def __init__(self, bondD, targetL):
@@ -70,7 +71,7 @@ class idmrg(object):
         dimH2 = newCl.shape[1]**2
         H2 = np.reshape(H2, (dimH2, dimH2))
         H2s = scipy.sparse.csr_matrix(H2)
-        
+
         if not np.allclose(H2, H2.T.conj()):
             warnings.warn(str(self.currL)+': H2 not Hermitian')
 
@@ -109,12 +110,14 @@ class idmrg(object):
 
         hf.close()
 
-if __name__ == '__main__':
-    bondD = 20
-    targetL = 100
-    hello = idmrg(bondD, targetL)
+    def grow_to_target(self):
+        while self.currL < targetL:
+            self.growby2()
+        return 0
 
-    for ix in range(100):
-        hello.growby2()
-        hello.growby2()
-        print(ix, np.around(hello.sigma, 5))
+if __name__ == '__main__':
+    bondD = 50
+    targetL = 50
+    solver = idmrg(bondD, targetL)
+    solver.growby2()
+    #solver.grow_to_target()
