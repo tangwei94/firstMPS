@@ -9,6 +9,7 @@ import contraction as contr
 import spinadd as sadd
 from canonical import canonical
 import h5py
+import datafile as df
 import time
 
 class idmrg(object):
@@ -50,14 +51,10 @@ class idmrg(object):
             self.Cr = contr.contractR(self.Cr, B_list[ix], self.M)
 
             # save As, Bs, Cl, Cr
-            hf['data/As_'+str(ix)] = A_list[ix].flatten()
-            hf['data/As_'+str(ix)].attrs['shape'] = A_list[ix].shape
-            hf['data/Cl_'+str(ix)] = self.Cl.flatten()
-            hf['data/Cl_'+str(ix)].attrs['shape'] = self.Cl.shape
-            hf['data/Bs_'+str(ix)] = B_list[ix].flatten()
-            hf['data/Bs_'+str(ix)].attrs['shape'] = B_list[ix].shape        
-            hf['data/Cr_'+str(ix)] = self.Cr.flatten()
-            hf['data/Cr_'+str(ix)].attrs['shape'] = self.Cr.shape
+            df.savearr(hf, 'data/As_'+str(ix), A_list[ix])
+            df.savearr(hf, 'data/Cl_'+str(ix), self.Cl)
+            df.savearr(hf, 'data/Bs_'+str(ix), B_list[ix])
+            df.savearr(hf, 'data/Cr_'+str(ix), self.Cr)
         hf['data/sigma'] = self.sigma
 
         hf.close()
@@ -94,14 +91,11 @@ class idmrg(object):
         # save data
         hf = h5py.File(self.dataname, 'r+')
         ix = self.currL // 2 - 1
-        hf['data/As_'+str(ix)] = self.As.flatten()
-        hf['data/As_'+str(ix)].attrs['shape'] = self.As.shape
-        hf['data/Cl_'+str(ix)] = self.Cl.flatten()
-        hf['data/Cl_'+str(ix)].attrs['shape'] = self.Cl.shape
-        hf['data/Bs_'+str(ix)] = self.Bs.flatten()
-        hf['data/Bs_'+str(ix)].attrs['shape'] = self.Bs.shape        
-        hf['data/Cr_'+str(ix)] = self.Cr.flatten()
-        hf['data/Cr_'+str(ix)].attrs['shape'] = self.Cr.shape
+
+        df.savearr(hf, 'data/As_'+str(ix), self.As)
+        df.savearr(hf, 'data/Cl_'+str(ix), self.Cl)
+        df.savearr(hf, 'data/Bs_'+str(ix), self.Bs)
+        df.savearr(hf, 'data/Cr_'+str(ix), self.Cr)
 
         del hf['parameters/currL']
         hf['parameters/currL'] = self.currL
