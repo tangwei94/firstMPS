@@ -130,8 +130,13 @@ class dmrg3s(object):
         Cr = df.readarr(hf, 'data/Cr_'+ str(indexR(self.L, self.ix+1)))
         hf.close()
 
+        # energy of the present state
+        self.E = mpsE(Cl, Cr, self.Ms, self.M)
+        self.adjust_alpha(self.E)
+
         # construt single-site H and solve
         E, Ms = singlesite_hamilt(Cl, Cr, self.M, self.Ms)
+        self.reducedE = self.E - E
 
         # subspace expansion
         P = self.alpha * obtainPL(Cr, Ms, self.M)
