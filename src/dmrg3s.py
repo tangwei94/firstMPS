@@ -14,22 +14,22 @@ def singlesite_hamilt(Cl, Cr, M, Ms):
     # construct the H mat
     Cl = np.reshape(Cl, (Cl.shape[1], Cl.shape[2], Cl.shape[3]))
     Cr = np.reshape(Cr, (Cr.shape[0], Cr.shape[1], Cr.shape[2]))
-    Hss = np.einsum('cdg, abef,dfh->acdbgh', Cl, M, Cr)
+    Hss = np.einsum('ceg,abef,dfh->acdbgh', Cl, M, Cr)
+    Hss = np.reshape(Hss, (Hss.shape[0]*Hss.shape[1]*Hss.shape[2], Hss.shape[3]*Hss.shape[4]*Hss.shape[5]))
     if not np.allclose(Hss, Hss.T.conj()):
         warnings.warn('singlesite_hamilt: Hss not hermitian')
 
     # solve
     Hss = scipy.sparse.csr_matrix(Hss)
     psi = Ms.flatten()
-    E, psi = scipy.sparse.linalg.eigsh(Hss, k=1, which='SC', v0=psi)
+    E, psi = scipy.sparse.linalg.eigsh(Hss, k=1, which='SA', v0=psi)
     newMs = np.reshape(psi, Ms.shape)
 
-    return E, newMs
+    return E[0], newMs
 
 def mpsE(Cl, Cr, Ms, M):
     Cl = contr.contractL(Cl, Ms, M)
-    Cl = np.reshape(Cl, (Cl.shape[1], Cl.shape[2], Cl.shape[3]))
-    Cr = np.reshape(Cr, (Cr.shape[0], Cr.shape[1], Cr.shape[2]))
+    Cl, Cr = Cl.flatten(), Cr.flatten() 
     return Cl.dot(Cr)
 
 def obtainPR(Cl, Ms, M):
@@ -56,7 +56,7 @@ class dmrg3s(object):
         self.dataname = 'data/xy_dmrg_D'+str(self.D)+'.h5'
 
         self.M = mpo.xy_mpo()
-        self.alpha = 0.5
+        self.alpha = 0.1
         self.E = 9.99e9
         self.reducedE = 9.99e9
 
@@ -65,14 +65,18 @@ class dmrg3s(object):
 
         self.ix = L // 2
         
-        hf = h5py.File(self.dataname, 'r')
+        hf = h5py.File(self.dataname, 'r+')
         Ms = df.readarr(hf, 'data/Bs_'+ str(indexR(self.L, self.ix)))
         self.Ms = np.einsum('bc,acd->abd', np.diag(hf['data/sigma']), Ms)
+        df.savearr(hf, 'data/Cl_-1', np.reshape([1,0,0,0], (1,1,4,1)))
+        df.savearr(hf, 'data/Cr_-1', np.reshape([0,0,0,1], (1,4,1,1)))
+        del hf['data/Bs_'+str(indexR(self.L, self.ix))]
+        del hf['data/Cr_'+str(indexR(self.L, self.ix))]
         hf.close()
 
     def adjust_alpha(self, E):
-        expectedE_upbound = self.E - self.reducedE * 0.65
-        expectedE_lowbound = self.E - self.reducedE * 0.75
+        expectedE_upbound = self.E - self.reducedE * 0.6
+        expectedE_lowbound = self.E - self.reducedE * 0.8
         if E > expectedE_upbound:
             self.alpha /= 1.2
         elif E < expectedE_lowbound:
@@ -97,7 +101,7 @@ class dmrg3s(object):
         # subspace expansion
         P = self.alpha * obtainPR(Cl, Ms, self.M)
         Ms_tilde = np.append(Ms, P, axis=2)
-        zeros = np.zeros((P.shape[2], Bs.shape[2]))
+        zeros = np.zeros((2, P.shape[2], Bs.shape[2]))
         Bs_tilde = np.append(Bs, zeros, axis=1)
 
         # truncation
@@ -112,12 +116,12 @@ class dmrg3s(object):
         newAs = np.reshape(q, (2, q.shape[0]//2, q.shape[1]))
         newCl = contr.contractL(Cl, newAs, self.M)
         self.Ms = np.einsum('bc,acd->abd', r, Bs_tilde)
-        self.ix += 1
 
         # update datafile
         hf = h5py.File(self.dataname, 'r+')
-        df.savearr(hf, 'data/As_'+str(self.ix-1), newAs)
-        df.savearr(hf, 'data/Cl_'+str(self.ix-1), newCl)
+        df.savearr(hf, 'data/As_'+str(self.ix), newAs)
+        df.savearr(hf, 'data/Cl_'+str(self.ix), newCl)
+        self.ix += 1
         del hf['data/Bs_'+str(indexR(self.L, self.ix))]
         del hf['data/Cr_'+str(indexR(self.L, self.ix))]
         hf.close()
@@ -125,14 +129,15 @@ class dmrg3s(object):
     def moveL(self):
         # read As, Bs, Cl, Cr
         hf = h5py.File(self.dataname, 'r')
-        As = df.readarr(hf, 'data/Bs_'+ str(self.ix-1))
+        As = df.readarr(hf, 'data/As_'+ str(self.ix-1))
         Cl = df.readarr(hf, 'data/Cl_'+ str(self.ix-1))
         Cr = df.readarr(hf, 'data/Cr_'+ str(indexR(self.L, self.ix+1)))
         hf.close()
 
         # energy of the present state
-        self.E = mpsE(Cl, Cr, self.Ms, self.M)
-        self.adjust_alpha(self.E)
+        newE = mpsE(Cl, Cr, self.Ms, self.M)
+        self.adjust_alpha(newE)
+        self.E = newE
 
         # construt single-site H and solve
         E, Ms = singlesite_hamilt(Cl, Cr, self.M, self.Ms)
@@ -141,7 +146,7 @@ class dmrg3s(object):
         # subspace expansion
         P = self.alpha * obtainPL(Cr, Ms, self.M)
         Ms_tilde = np.append(Ms, P, axis=1)
-        zeros = np.zeros((As.shape[1], P.shape[1]))
+        zeros = np.zeros((2, As.shape[1], P.shape[1]))
         As_tilde = np.append(As, zeros, axis=2)
 
         # truncation
@@ -161,19 +166,38 @@ class dmrg3s(object):
         newBs = np.swapaxes(newBs, 0, 1)
         newCr = contr.contractR(Cr, newBs, self.M)
         self.Ms = np.einsum('abc,cd->abd', As_tilde, r)
-        self.ix -= 1
 
         # update datafile
         hf = h5py.File(self.dataname, 'r+')
-        df.savearr(hf, 'data/Bs_'+str(indexR(self.L, self.ix+1)), newBs)
-        df.savearr(hf, 'data/Cr_'+str(indexR(self.L, self.ix+1)), newCr)
-        del hf['data/As_'+str(self.ix-1)]
-        del hf['data/Cl_'+str(self.ix-1)]
+        df.savearr(hf, 'data/Bs_'+str(indexR(self.L, self.ix)), newBs)
+        df.savearr(hf, 'data/Cr_'+str(indexR(self.L, self.ix)), newCr)
+        self.ix -= 1
+        del hf['data/As_'+str(self.ix)]
+        del hf['data/Cl_'+str(self.ix)]
         hf.close()
 
+if __name__ == '__main__':
+    L = 100
+    D = 24
+    Egs = lambda L: -1*(np.sin((L//2+0.5)*np.pi/(L+1))/np.sin(0.5*np.pi/(L+1))/2-0.5)
+    E_exact = Egs(L)
+    solver = dmrg3s(L, D)
 
+    takereal = lambda x: np.around(x.real, 6)
+    takelog = lambda x: np.log10(np.abs(takereal(x)))
+    for ix in range(L//2 - 1):
+        solver.moveR()
+        print(solver.ix, takereal(solver.E), takelog(E_exact-solver.E), takereal(solver.reducedE))
 
-
+    def sweap():
+        for ix in range(L - 1):
+            solver.moveL()
+            print(solver.ix, takereal(solver.E), takelog(E_exact-solver.E), takereal(solver.reducedE))
+        for ix in range(L - 1):
+            solver.moveR()
+            print(solver.ix, takereal(solver.E), takelog(E_exact-solver.E), takereal(solver.reducedE))
+    for ix in range(5):
+        sweap()
 
 
         

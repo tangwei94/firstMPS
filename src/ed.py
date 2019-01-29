@@ -35,6 +35,7 @@ def ground_state(H):
 if __name__=='__main__':
     H = xy_hamilt(6)
     gs = ground_state(H)
-    print(np.around(gs[0], decimals=2))
-    print(np.around(gs[1], decimals=2))
+    print(gs[0])
+    #print(np.around(gs[0], decimals=2))
+    #print(np.around(gs[1], decimals=2))
     

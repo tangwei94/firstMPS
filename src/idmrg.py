@@ -105,7 +105,7 @@ class idmrg(object):
         hf.close()
 
     def grow_to_target(self):
-        while self.currL < targetL:
+        while self.currL < self.targetL:
             self.growby2()
         return 0
 
